@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset='utf-8' />
+    <title>{$surface}</title>
+    <meta name='renderer' content='webkit' />
+    <meta name='viewport' content='width=device-width, initial-scale=1, maximum-scale=1' />
+    <link rel='stylesheet' href='/dist/layui/css/layui.css?v=20201111001' />
+    <link rel='stylesheet' type='text/css' href='../css/style.css?v=20201111001' />
+</head>
+
+<body class='layui-form'>{$html}
+    <div class='layui-footer layui-nobox'>
+        <button class='layui-btn layui-btn-normal layui-btn-sm' lay-submit lay-filter='submit'>保存</button>
+        <button class='layui-btn layui-btn-primary layui-btn-sm' lay-close='true'>取消</button>
+    </div>
+</body>
+<script src='/dist/layui/layui.js?v=20201111001'></script>
+<script src='../js/api.js?v=20201111001'></script>
+<script>
+    var form = layui.form;
+    form.on('submit(submit)', function (data) {
+        $.ajax({
+            url: api.url('set') + '&id={$id}',
+            type: 'POST',
+            dataType: 'json',
+            data: data.field,
+            beforeSend: function () {
+                parent.layer.msg('正在提交', {
+                    icon: 16,
+                    shade: 0.05,
+                    time: false
+                });
+            },
+            success: function (data) {
+                parent.layer.msg(data.msg, {
+                    icon: data.code
+                }, function () {
+                    if (data.code == 1) {
+                        var index = parent.layer.getFrameIndex(window.name);
+                        parent.layer.close(index);
+                        parent.reload('{$surface}');
+                    }
+                });
+            },
+            error: r => layer.alert(r.responseText, { icon: 2 })
+        });
+        return false;
+    });
+    //{$script}
+
+    function init() {
+        $.ajax({
+            url: api.url('get'),
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                id: '{$id}'
+            },
+            beforeSend: function () {
+                parent.layer.msg("正在加载", {
+                    icon: 16,
+                    shade: 0.05,
+                    time: false
+                });
+            },
+            success: function (data) {
+                parent.layer.msg(data.msg, {
+                    icon: data.code
+                });
+                if (data.code == 1) {
+                    set(data.data);
+                } else {
+                    var index = parent.layer.getFrameIndex(window.name);
+                    parent.layer.close(index);
+                }
+            },
+            error: r => layer.alert(r.responseText, { icon: 2 })
+        });
+    }
+
+    function set(data) {
+        var len = data.length;
+        for (var i = 0; i < len; i++) {
+            (function (i) {
+                setTimeout(function () {
+                    var json = data[i];
+                    var name = json.name;
+                    var type = json.type;
+                    var value = json.value;
+                    var attr = json.attr;
+                    var elem = $("[name=" + name + "]");
+                    switch (type) {
+                        case "radio":
+                            elem.prop("checked", false);
+                            elem.siblings("[value=" + value + "]").prop("checked", true);
+                            break;
+                        case "switch":
+                            elem.prop("checked", value == "1" ? true : false);
+                            break;
+                        case "checkbox":
+                            var option = value.split(",");
+                            for (var index in option) {
+                                var item = option[index].split("=");
+                                var value = item.length >= 1 ? item[0] : "";
+                                var checked = item.length >= 2 ? item[1] : "false";
+                                var elem = $("[name='" + name + "[" + value + "]']");
+                                elem.prop("checked", checked == "true" ? true : false);
+                            }
+                            break;
+                        case "color":
+                            layui.colorpicker.render({
+                                elem: "#color_select_" + name,
+                                size: "xs",
+                                color: value,
+                                change: function (color) {
+                                    console.log($("[name=" + name + "]"));
+                                    $("[name=" + name + "]").val(color);
+                                },
+                                done: function (color) {
+                                    $("[name=" + name + "]").val(color);
+                                }
+                            });
+                            elem.val(value);
+                            break;
+                        case "file":
+                            elem.attr("value", value);
+                            elem.after('文件信息：<a href="' + value + '" class="layui-table-link" target="_blank">' + value + '</a>');
+                            break;
+                        default:
+                            elem.val(value);
+                    }
+                    form.render();
+                    if (i == len - 1) {
+                        api.c();
+                    }
+                }, (i + 1) * 10);
+            })(i);
+        }
+    }
+
+    var id = '{$id}';
+    if (id != '') {
+        init();
+    }
+    //{$success}
+</script>
+
+</html>

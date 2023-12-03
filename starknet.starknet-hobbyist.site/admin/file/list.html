@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>{$name}</title>
+    <meta name="renderer" content="webkit" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <link rel="stylesheet" href="/dist/layui/css/layui.css?v=20201111001" />
+    <link rel="stylesheet" type="text/css" href="../css/style.css?v=20201111001" />
+</head>
+
+<body class="layui-form">
+    <div class="layui-card theme-card">
+        <div class="layui-card-body">
+            <div class="layui-form-item">
+                <label class="layui-form-label">查询条件</label>
+                <div class="layui-input-inline">
+                    <select name="searchList" lay-verify="required" lay-filter="searchList" lay-search>
+                        {$searchList}
+                    </select>
+                </div>
+                <!-- 可选的查询框 -->
+                <div class="layui-input-inline" name="searchElem">
+                    {$searchElem}
+                </div>
+                <div class="layui-input-inline">
+                    <button class="layui-btn layui-btn-sm layui-btn-normal search">
+                        <i class="layui-icon layui-icon-search"></i>
+                        <span>查询</span>
+                    </button>
+                </div>
+                <div class="layui-input-inline">
+                    <button class="layui-btn layui-btn-sm layui-btn-primary reset">
+                        <i class="layui-icon layui-icon-refresh"></i>
+                        <span>重置条件</span>
+                    </button>
+                </div>
+            </div>
+            <!-- 数据展示表格 -->
+            <table id="data" lay-filter="data"></table>
+        </div>
+    </div>
+</body>
+<script src="/dist/layui/layui.js?v=20201111001"></script>
+<script src="../js/api.js?v=20201111001"></script>
+<!-- 扩展组件 -->
+<script type="text/html" id="dataTool">
+    <div class="layui-btn-container">
+        {$addBtn}
+        <button class="layui-btn layui-btn-sm layui-btn-plug-danger" lay-event="Del">
+            <i class="layui-icon layui-icon-delete"></i>
+            <span>删除角色</span>
+        </button>
+    </div>
+</script>
+<!-- 自定义组件 -->
+<!-- [操作]删除按钮 -->
+<script type='text/html' id='caozuoDelTool'>
+    <a class='layui-table-link' lay-event='caozuo_edit' title='修改'>修改</a>
+    <span class='layui-table-divide'></span>
+    <a class='layui-table-link' lay-event='caozuo_juris' title='权限'>权限</a>
+    <span class='layui-table-divide'></span>
+    <a class='layui-table-del' lay-event='caozuo_del'>删除</a>
+</script>
+<script>
+    layui.use(function () {
+        var able = layui.table,
+            form = layui.form,
+            upload = layui.upload,
+            laydate = layui.laydate;
+        //查询条件
+        window.where = function () {
+            var json = {};
+            var elem = $("[name=fieldTypeInput]");
+            elem.find(".showSearch").each(function () {
+                var node = $(this).children("*:eq(0)");
+                var name = node.attr("name");
+                var value = node.val();
+                json[name] = value;
+            });
+            return json;
+        };
+
+        //重新渲染
+        window.reload = function () {
+            table.reload('data', {
+                page: {
+                    curr: 1
+                },
+                where: where()
+            });
+        };
+
+        //表格初始化
+        table.render({
+            elem: "#data",
+            // height: "full-110",
+            url: api.url('data'),
+            page: true,
+            //limit: 100,
+            //limits: [10, 20, 30, 50, 100, 200, 300, 500, 1000, 2000],
+            title: "网站角色",
+            toolbar: "#dataTool",
+            skin: "line",
+            where: where(),
+            cols: [
+                [{
+                    type: 'checkbox',
+                }, {
+                    field: 'indexId',
+                    title: '序号',
+                    width: 80,
+                    align: 'center',
+                    type: "numbers",
+
+                }, {
+                    field: 'name',
+                    title: '角色名称',
+                    width: 150
+                }, {
+                    field: 'comment',
+                    title: '备注信息',
+                    width: 200
+                }, {
+                    field: 'found_date',
+                    title: '创建时间',
+                    minWidth: 170
+                }, {
+                    field: 'caozuo',
+                    title: '操作',
+                    templet: '#caozuoEditTool',
+                    width: 150,
+                    hide: true,
+                    fixed: 'right',
+                    align: 'center'
+                }, {
+                    field: 'caozuo',
+                    title: '操作',
+                    templet: '#caozuoDelTool',
+                    width: 200,
+                    fixed: 'right',
+                    align: 'center'
+                }]
+            ]
+        });
+
+        //查询按钮
+        $(".search").click(function () {
+            reload("data");
+        });
+
+        //输入框回车查询
+        $(".layui-input").keydown(function (e) {
+            if (e.keyCode == 13) {
+                reload("data");
+            }
+        });
+
+        //重置查询条件
+        $(".reset").click(function () {
+            var box = $("[name=searchElem]"),
+                div = box.children("div");
+            div.children['[name]'].val('');
+            form.render();
+            reload();
+        });
+
+        //选择查询条件
+        form.on("select(searchList)", function (data) {
+            var box = $("[name=searchElem]"),
+                div = box.children("div");
+            div.addClass('layui-hide');
+            if (data.value != "") {
+                var node = div.children("[name=" + data.value + "]");
+                node.parent().removeClass("layui-hide");
+            }
+        });
+        table.on("toolbar(data)", function (obj) {
+            var checkStatus = table.checkStatus(obj.config.id);
+            switch (obj.event) {
+                case 'add':
+                    edit();
+                    break;
+                case 'Del':
+                    Del(checkStatus);
+                    break;
+            };
+        });
+
+
+        function edit(id = '') {
+            layer.open({
+                type: 2,
+                title: id == '' ? '新增{$name}' : '修改{$name}',
+                area: ["437px", "{$addHeight}px"],
+                maxmin: false,
+                content: location.pathname + "?method=edit&id=" + id,
+                shade: 0.3
+            });
+        }
+
+        function caozuo_juris(obj) {
+            layer.open({
+                type: 2,
+                title: '修改权限',
+                area: ["519px", "509px"],
+                maxmin: false,
+                content: "juris_set.php?id=" + obj.data.id,
+                shade: 0.3
+            });
+        }
+
+        function caozuo_del(obj) {
+            layer.confirm('确定删除此角色吗？', function () {
+                var arr = [];
+                arr[0] = obj.data;
+                $.ajax({
+                    url: api.url('del'),
+                    type: 'POST',
+                    dataType: 'json',
+                    beforeSend: function () {
+                        layer.msg('删除中', {
+                            icon: 16,
+                            shade: 0.05,
+                            time: false
+                        });
+                    },
+                    data: {
+                        item: arr
+                    },
+                    success: function (data) {
+                        layer.msg(data.msg, {
+                            icon: data.code
+                        });
+                        if (data.code == '1') {
+                            obj.del();
+                        }
+                    },
+                    error: r => layer.alert(r.responseText, { icon: 2 })
+                });
+            });
+        }
+
+        table.on('tool(data)', function (obj) {
+            var data = obj.data;
+            switch (obj.event) {
+                case 'caozuo_edit':
+                    caozuo_edit(obj);
+                    break;
+                case 'caozuo_del':
+                    caozuo_del(obj);
+                    break;
+                case 'caozuo_juris':
+                    caozuo_juris(obj);
+                    break;
+            };
+        });
+
+        function add() {
+            layer.open({
+                type: 2,
+                title: '新增角色',
+                area: ["437px", "315px"],
+                maxmin: false,
+                content: "roles_edit.php?method=edit",
+                shade: 0.3
+            });
+        }
+
+        function Del(checkStatus) {
+            layer.confirm('确定删除选中的角色吗？', function () {
+                $.ajax({
+                    url: api.url('del'),
+                    type: 'POST',
+                    dataType: 'json',
+                    beforeSend: function () {
+                        layer.msg('删除中', {
+                            icon: 16,
+                            shade: 0.05,
+                            time: false
+                        });
+                    },
+                    data: {
+                        item: checkStatus.data
+                    },
+                    success: function (data) {
+                        layer.msg(data.msg, {
+                            icon: data.code
+                        });
+                        if (data.code == '1') {
+                            reload('data');
+                        }
+                    },
+                    error: r => layer.alert(r.responseText, { icon: 2 })
+                });
+            });
+        }
+    });
+</script>
+
+</html>
